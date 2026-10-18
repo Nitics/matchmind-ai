@@ -1,0 +1,39 @@
+=== MatchMind AI | Riverside Rovers vs Crown Valley Athletic (seed 7) ===
+
+--- Live feed ---
+   0'  We're under way! Riverside Rovers host Crown Valley Athletic.
+   2'  GOAL! K. Achterberg finishes it off after great work from J. Hale! Rovers 1-0 Athletic.
+  21'  Yellow card for Y. Brook (Crown Valley Athletic).
+  29'  Yellow card for A. Rossi (Crown Valley Athletic).
+  45'  Half-time: Rovers 1-0 Athletic.
+  53'  GOAL! W. Sesay finishes it off after great work from T. Ombati! Rovers 1-1 Athletic.
+  55'  GOAL! U. Grau scores for Crown Valley Athletic! Rovers 1-2 Athletic.
+  70'  Yellow card for M. Silva (Riverside Rovers).
+  86'  Brilliant stop by S. Dahl!
+90+4'  Full-time! Rovers 1-2 Athletic.
+
+--- Win probability (home/draw/away) ---
+ 0'  46% / 25% / 30%
+30'  72% / 19% / 9%
+45'  74% / 19% / 7%
+60'  7% / 23% / 70%
+75'  2% / 17% / 81%
+90'  0% / 0% / 100%
+
+--- Recap ---
+# Crown Valley Athletic beat Riverside Rovers 2-1.
+
+**Stats** - Rovers vs Athletic
+xG 1.48 - 1.47 | Shots 14 - 12 | On target 8 - 5 | Possession 52% - 48%
+
+**Goals:** K. Achterberg 2', W. Sesay 53', U. Grau 55'
+
+**Key moment**
+- 55' U. Grau converted a moderate chance (xG 0.17). Crown Valley Athletic's win probability moved from 24% to 68%.
+- 53' W. Sesay converted a moderate chance (xG 0.33). Crown Valley Athletic's win probability moved from 5% to 24%.
+- 2' K. Achterberg converted a moderate chance (xG 0.24). Riverside Rovers' win probability moved from 45% to 70%.
+
+**Tactical read**
+- Crown Valley Athletic's goalkeeper made 7 saves to keep them in it.
+
+**Player of the match:** S. Dahl (Crown Valley Athletic) - 34 pts

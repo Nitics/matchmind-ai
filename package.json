@@ -1,0 +1,16 @@
+{
+  "name": "matchmind-ai",
+  "version": "1.0.0",
+  "description": "MatchMind AI: turns synthetic football match data into explainable match intelligence, live narratives and automated recaps.",
+  "main": "src/index.js",
+  "bin": { "matchmind": "src/cli.js" },
+  "scripts": {
+    "start": "node src/cli.js",
+    "demo": "node src/cli.js demo",
+    "dashboard": "node scripts/build-dashboard.js",
+    "test": "node --test src/tests/*.test.js"
+  },
+  "engines": { "node": ">=22" },
+  "keywords": ["football", "ai", "hackathon", "premier-league", "azure", "copilot"],
+  "license": "MIT"
+}

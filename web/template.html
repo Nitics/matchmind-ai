@@ -1,0 +1,677 @@
+<title>MatchMind AI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky match bar; overview (tiles, replay pitch + metrics + win probability, event timeline), then tactical, then recap and live feed. Dark-first, floodlit-pitch palette. */
+:root {
+  color-scheme: dark;
+  --bg: #0a111d;
+  --panel: #111b2c;
+  --panel-2: #0d1624;
+  --line: #1e2b42;
+  --fg: #e7eef8;
+  --muted: #8796ae;
+  --accent: #3ee0a5;
+  --accent-ink: #062018;
+  --home: #43b7ff;
+  --away: #c08bff;
+  --draw: #3a4762;
+  --down: #ff7b72;
+  --card-yellow: #f3c24f;
+  --card-red: #ff5a52;
+  --pitch: #0f2a22;
+  --pitch-line: #2f5a4b;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #eef2f7; --panel: #ffffff; --panel-2: #f5f8fb; --line: #d9e0ea; --fg: #0e1a2b; --muted: #57657d;
+    --accent: #0c9a68; --accent-ink: #ffffff; --home: #0a7cc4; --away: #8547d6; --draw: #c6cfdc;
+    --down: #cf3e36; --card-yellow: #c99400; --card-red: #d6332b; --pitch: #e3f1ea; --pitch-line: #9cc4b2;
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef2f7; --panel: #ffffff; --panel-2: #f5f8fb; --line: #d9e0ea; --fg: #0e1a2b; --muted: #57657d;
+  --accent: #0c9a68; --accent-ink: #ffffff; --home: #0a7cc4; --away: #8547d6; --draw: #c6cfdc;
+  --down: #cf3e36; --card-yellow: #c99400; --card-red: #d6332b; --pitch: #e3f1ea; --pitch-line: #9cc4b2;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel-2); }
+.num { font-variant-numeric: tabular-nums; }
+button, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Top bar */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.topbar-inner { max-width: 1280px; margin: 0 auto; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.brand svg { width: 28px; height: 28px; flex: none; }
+.brand b { color: var(--accent); font-weight: 700; }
+.nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 8px; }
+.nav a:hover { color: var(--fg); background: var(--panel); }
+.controls { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+select { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; max-width: 220px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: var(--panel); border: 0; padding: 6px 10px; font-weight: 600; font-size: 13px; cursor: pointer; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* Page */
+main { max-width: 1280px; margin: 0 auto; padding-block: 22px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+section { display: grid; gap: 18px; scroll-margin-top: 80px; }
+.page-head h1 { font-family: var(--font-display); font-size: clamp(30px, 4vw, 40px); line-height: 1.05; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+.page-head p { margin: 4px 0 0; color: var(--muted); }
+.source { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--accent); }
+h2 { font-family: var(--font-display); font-size: 26px; margin: 10px 0 0; letter-spacing: 0.01em; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.panel-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.hint { font-size: 12px; color: var(--muted); }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 2px; }
+.kpi-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kpi-value { font-family: var(--font-display); font-size: 34px; font-weight: 700; line-height: 1; }
+.kpi-label { font-size: 13px; color: var(--muted); }
+.pill { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.up { background: var(--accent); color: var(--accent-ink); }
+.pill.down { background: var(--down); color: #1b0606; }
+.pill.even { background: var(--draw); color: var(--fg); }
+
+.grid-main { align-items: start; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; }
+.stack { display: grid; gap: 18px; align-content: start; min-width: 0; }
+
+/* Replay pitch */
+.pitch-wrap { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.pitch { width: 100%; height: auto; display: block; }
+.pitch .turf { fill: var(--pitch); }
+.pitch .lines { fill: none; stroke: var(--pitch-line); stroke-width: 0.35; }
+.pitch .shot { cursor: pointer; }
+.caption { margin-top: 12px; display: grid; gap: 4px; min-height: 64px; }
+.caption .line { font-weight: 600; }
+.caption .why { color: var(--muted); font-size: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.replay-nav { display: flex; gap: 8px; }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* Metrics table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; padding: 0 0 8px; border-bottom: 1px solid var(--line); }
+th.r, td.r { text-align: right; }
+td { padding: 7px 0; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+td.better { font-weight: 700; }
+.bar2 { display: flex; height: 4px; border-radius: 2px; overflow: hidden; background: var(--draw); margin-top: 4px; }
+.bar2 i { display: block; height: 100%; }
+
+/* Charts */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { fill: var(--muted); font-size: 10px; font-family: var(--font-body); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+
+/* Timeline */
+.timeline svg { width: 100%; min-width: 640px; height: auto; display: block; }
+.timeline .marker { cursor: pointer; }
+.clips { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; margin-top: 10px; }
+.clip { flex: 0 0 180px; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; display: grid; gap: 4px; }
+.clip:hover { border-color: var(--muted); }
+.clip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.clip .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); display: flex; justify-content: space-between; }
+.clip .t { font-weight: 600; font-size: 14px; }
+.clip .p { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tag { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Tactical */
+.grid-3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 18px; }
+.patterns { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.patterns li { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.patterns li:last-child { border-bottom: 0; padding-bottom: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
+.side-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.potm-name { font-family: var(--font-display); font-size: 30px; font-weight: 700; line-height: 1.05; }
+.empty { color: var(--muted); font-size: 14px; }
+
+/* Recap + live feed */
+.grid-recap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; flex-wrap: wrap; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 10px 8px; cursor: pointer; font-weight: 600; color: var(--muted); }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.recap { max-width: 68ch; }
+.recap h3 { font-family: var(--font-display); font-size: 24px; margin: 0 0 8px; text-wrap: balance; }
+.recap h4 { font-size: 15px; margin: 0 0 6px; color: var(--accent); }
+.recap p { margin: 0 0 10px; }
+.recap ul { margin: 0 0 10px; padding-left: 18px; }
+.recap li { margin-bottom: 4px; }
+.social { white-space: pre-wrap; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; max-width: 46ch; }
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; max-height: 440px; overflow-y: auto; }
+.feed li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.feed .m { font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--muted); }
+.feed li.goal .m { color: var(--accent); }
+.feed li.goal .x { font-weight: 600; }
+.feed li.new { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } to { background: transparent; } }
+.clock { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding-top: 6px; }
+
+@media (max-width: 1000px) {
+  .grid-main, .grid-recap { grid-template-columns: minmax(0, 1fr); }
+  .grid-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .grid-3 > :last-child { grid-column: 1 / -1; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .controls { margin-left: 0; }
+  .nav { order: 3; width: 100%; }
+  .kpi-value { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed li.new { animation: none; }
+  .pulse { display: none; }
+}
+</style>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" aria-label="MatchMind AI">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="14" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+        <path d="M16 6 L24 12 L21 22 L11 22 L8 12 Z" fill="var(--accent)"/>
+        <circle cx="16" cy="16" r="2.6" fill="var(--panel-2)"/>
+      </svg>
+      <span>MatchMind <b>AI</b></span>
+    </div>
+    <nav class="nav" aria-label="Sections">
+      <a href="#overview">Overview</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#tactical">Tactical</a>
+      <a href="#recap">Recap</a>
+    </nav>
+    <div class="controls">
+      <label for="match-select">Match <select id="match-select"></select></label>
+      <label for="lang-select">Language <select id="lang-select"></select></label>
+      <span class="seg" id="side-toggle" role="group" aria-label="View as"></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="overview" aria-labelledby="overview-title">
+    <div class="page-head">
+      <h1 id="overview-title">Match Overview</h1>
+      <p id="match-sub" class="num"></p>
+      <span class="source">Data: MatchMind synthetic event stream (seeded, fictional teams)</span>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid-main">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Moment replay <span class="hint">(synced to events)</span></h3>
+          <div class="replay-nav">
+            <button class="btn" id="prev-moment" type="button" aria-label="Previous moment">&larr; Prev</button>
+            <button class="btn" id="next-moment" type="button" aria-label="Next moment">Next &rarr;</button>
+          </div>
+        </div>
+        <div class="pitch-wrap"><svg class="pitch" id="pitch" viewBox="-3 -3 111 78" role="img" aria-label="Shot map"></svg></div>
+        <div class="legend" id="pitch-legend"></div>
+        <div class="caption" id="caption" aria-live="polite"></div>
+      </div>
+
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head"><h3>Key team metrics</h3></div>
+          <div class="table-wrap"><table id="metrics"></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Win probability</h3>
+            <span class="hint num" id="wp-readout"></span>
+          </div>
+          <svg class="chart" id="wp-chart" viewBox="0 0 520 200" role="img" aria-label="Win probability over the match"></svg>
+          <div class="legend" id="wp-legend"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="timeline" aria-labelledby="timeline-title">
+    <div class="panel timeline">
+      <div class="panel-head">
+        <h3 id="timeline-title">Match timeline (events + clips)</h3>
+        <span class="hint">Select a marker or clip to replay it</span>
+      </div>
+      <div class="table-wrap"><svg id="timeline-svg" viewBox="0 0 900 96" role="group" aria-label="Event timeline"></svg></div>
+      <div class="clips" id="clips"></div>
+    </div>
+  </section>
+
+  <section id="tactical" aria-labelledby="tactical-title">
+    <h2 id="tactical-title">Tactical read</h2>
+    <div class="grid-3">
+      <div class="panel">
+        <div class="panel-head"><h3>Momentum</h3><span class="hint">Pressure per 15 min</span></div>
+        <svg class="chart" id="momentum" viewBox="0 0 320 190" role="img" aria-label="Attacking pressure by 15-minute window"></svg>
+        <p class="hint">Shots count 3, corners 1, progressive passes 0.5.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Detected patterns</h3><span class="hint">With the evidence behind each</span></div>
+        <ul class="patterns" id="patterns"></ul>
+      </div>
+      <div class="panel" id="potm"></div>
+    </div>
+  </section>
+
+  <section id="recap" aria-labelledby="recap-title">
+    <h2 id="recap-title">Recap and live feed</h2>
+    <div class="grid-recap">
+      <div class="panel">
+        <div class="tabs" role="tablist" id="recap-tabs">
+          <button role="tab" type="button" data-tab="broadcast" aria-selected="true">Broadcast</button>
+          <button role="tab" type="button" data-tab="fan" aria-selected="false">Fan</button>
+          <button role="tab" type="button" data-tab="social" aria-selected="false">Social</button>
+        </div>
+        <div id="recap-body"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Live commentary</h3>
+          <div class="replay-nav">
+            <span class="clock num" id="clock" aria-live="off">FT</span>
+            <button class="btn primary" id="play" type="button">Replay live</button>
+          </div>
+        </div>
+        <ul class="feed" id="feed" aria-live="polite"></ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>MatchMind AI · all teams, players and matches are synthetic · built for Inside the Game: Developer Hackathon</footer>
+</main>
+
+<script>
+const DATA = /*__MATCHMIND_DATA__*/null;
+const LANG_NAMES = { en: 'English', es: 'Español', fr: 'Français', pt: 'Português', de: 'Deutsch' };
+const TYPE_LABEL = { goal: 'Goal', red_card: 'Red card', yellow_card: 'Yellow card', save: 'Big save', shot: 'Big chance', substitution: 'Substitution' };
+
+const state = { m: 0, lang: 'en', side: 'home', sel: null, tab: 'broadcast', liveMinute: null, timer: null };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtMin = (m) => (m > 90 ? `90+${m - 90}` : String(m));
+const opp = (s) => (s === 'home' ? 'away' : 'home');
+const color = (side) => `var(--${side})`;
+const match = () => DATA.matches[state.m];
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Moments that the replay steps through: highlight-worthy markers in time order. */
+function moments() {
+  return match().markers.filter((e) => e.type !== 'substitution');
+}
+
+function setup() {
+  const ms = $('match-select');
+  ms.innerHTML = DATA.matches.map((x, i) => `<option value="${i}">${esc(x.home.short)} ${x.score.home}–${x.score.away} ${esc(x.away.short)} · seed ${x.seed}</option>`).join('');
+  $('lang-select').innerHTML = DATA.languages.map((l) => `<option value="${l}">${LANG_NAMES[l] || l}</option>`).join('');
+  const savedLang = store.get('mm-lang');
+  if (savedLang && DATA.languages.includes(savedLang)) state.lang = savedLang;
+  $('lang-select').value = state.lang;
+  ms.addEventListener('change', () => { state.m = Number(ms.value); state.sel = null; stopLive(); renderAll(); });
+  $('lang-select').addEventListener('change', (e) => { state.lang = e.target.value; store.set('mm-lang', state.lang); renderRecap(); renderFeed(); renderCaption(); });
+  $('prev-moment').addEventListener('click', () => step(-1));
+  $('next-moment').addEventListener('click', () => step(1));
+  $('play').addEventListener('click', () => (state.timer ? stopLive() : startLive()));
+  $('recap-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-tab]');
+    if (!b) return;
+    state.tab = b.dataset.tab;
+    renderRecap();
+  });
+}
+
+function step(dir) {
+  const ms = moments();
+  if (!ms.length) return;
+  const i = ms.findIndex((e) => e.id === state.sel);
+  const next = i === -1 ? (dir > 0 ? 0 : ms.length - 1) : (i + dir + ms.length) % ms.length;
+  select(ms[next].id);
+}
+
+function select(id) {
+  state.sel = id;
+  renderPitch(); renderCaption(); renderTimeline(); renderClips(); renderWinProb();
+}
+
+/* ---------- Header + tiles ---------- */
+function renderHeader() {
+  const x = match();
+  $('match-sub').textContent = `${x.home.name} vs ${x.away.name}  •  ${x.score.home}–${x.score.away}  •  Synthetic fixture, seed ${x.seed}`;
+  $('side-toggle').innerHTML = ['home', 'away'].map((s) => `<button type="button" data-side="${s}" aria-pressed="${state.side === s}">View as ${esc(x[s].short)}</button>`).join('');
+  $('side-toggle').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { state.side = b.dataset.side; renderAll(); }));
+}
+
+function pill(diff, unit = '', digits = 0) {
+  const v = Number(diff.toFixed(digits));
+  const cls = v > 0 ? 'up' : v < 0 ? 'down' : 'even';
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '±';
+  return `<span class="pill ${cls} num" title="Difference vs opponent">${sign}${Math.abs(v).toFixed(digits)}${unit}</span>`;
+}
+
+function renderKpis() {
+  const x = match(), s = x.stats[state.side], o = x.stats[opp(state.side)];
+  const tiles = [
+    { v: s.xg.toFixed(2), l: 'xG for', d: pill(s.xg - o.xg, '', 2) },
+    { v: `${s.possession}%`, l: 'Possession (attacking actions)', d: pill(s.possession - o.possession, '%') },
+    { v: `${s.onTarget}<span class="kpi-label"> / ${s.shots}</span>`, l: 'Shots on target / total', d: pill(s.onTarget - o.onTarget) },
+    { v: String(s.progressivePasses), l: 'Progressive passes', d: pill(s.progressivePasses - o.progressivePasses) },
+  ];
+  $('kpis').innerHTML = tiles.map((t) => `<div class="kpi"><div class="kpi-top"><span class="kpi-value num">${t.v}</span>${t.d}</div><span class="kpi-label">${t.l}</span></div>`).join('');
+}
+
+/* ---------- Metrics table ---------- */
+function renderMetrics() {
+  const x = match(), h = x.stats.home, a = x.stats.away;
+  const rows = [
+    ['Shots', 'shots', 1], ['On target', 'onTarget', 1], ['xG', 'xg', 1], ['Possession %', 'possession', 1],
+    ['Corners', 'corners', 1], ['Progressive passes', 'progressivePasses', 1], ['Saves', 'saves', 1],
+    ['Fouls', 'fouls', -1], ['Yellow cards', 'yellow', -1], ['Red cards', 'red', -1],
+  ];
+  const body = rows.map(([label, k, better]) => {
+    const hv = h[k], av = a[k], total = hv + av || 1;
+    const hb = better * (hv - av) > 0, ab = better * (av - hv) > 0;
+    return `<tr><td>${label}<div class="bar2" aria-hidden="true"><i style="width:${(hv / total) * 100}%;background:var(--home)"></i><i style="width:${(av / total) * 100}%;background:var(--away)"></i></div></td>
+      <td class="r num ${hb ? 'better' : ''}">${hv}</td><td class="r num ${ab ? 'better' : ''}">${av}</td></tr>`;
+  }).join('');
+  $('metrics').innerHTML = `<thead><tr><th>Metric</th><th class="r" style="color:var(--home)">${esc(x.home.short)}</th><th class="r" style="color:var(--away)">${esc(x.away.short)}</th></tr></thead><tbody>${body}</tbody>`;
+}
+
+/* ---------- Pitch / shot map ---------- */
+function selectedShot() {
+  const x = match(), e = x.markers.find((m) => m.id === state.sel);
+  if (!e) return null;
+  if (e.type === 'goal') return x.shots.find((s) => s.minute === e.minute && s.player === e.player && s.goal);
+  if (e.type === 'save') return x.shots.filter((s) => s.minute === e.minute && s.side !== e.side).pop();
+  return null;
+}
+
+function renderPitch() {
+  const x = match(), sel = selectedShot();
+  const lines = `
+    <rect class="turf" x="-3" y="-3" width="111" height="78" rx="2"/>
+    <g class="lines">
+      <rect x="0" y="0" width="105" height="68"/>
+      <line x1="52.5" y1="0" x2="52.5" y2="68"/>
+      <circle cx="52.5" cy="34" r="9.15"/>
+      <rect x="0" y="13.84" width="16.5" height="40.32"/><rect x="88.5" y="13.84" width="16.5" height="40.32"/>
+      <rect x="0" y="24.84" width="5.5" height="18.32"/><rect x="99.5" y="24.84" width="5.5" height="18.32"/>
+      <rect x="-1.6" y="30.34" width="1.6" height="7.32"/><rect x="105" y="30.34" width="1.6" height="7.32"/>
+      <path d="M16.5 26.7 A9.15 9.15 0 0 1 16.5 41.3"/><path d="M88.5 26.7 A9.15 9.15 0 0 0 88.5 41.3"/>
+    </g>
+    <text x="1" y="73" font-size="2.6" fill="var(--muted)">◀ ${esc(x.away.short)} attack</text>
+    <text x="104" y="73" font-size="2.6" fill="var(--muted)" text-anchor="end">${esc(x.home.short)} attack ▶</text>`;
+  const shots = x.shots.map((s) => {
+    const r = (0.7 + s.xg * 2.8).toFixed(2), c = color(s.side), isSel = sel && sel.id === s.id;
+    const fill = s.goal ? c : 'var(--pitch)';
+    const op = sel && !isSel ? 0.35 : 1;
+    return `<circle class="shot" cx="${s.x}" cy="${s.y}" r="${r}" fill="${fill}" stroke="${c}" stroke-width="${s.onTarget ? 0.6 : 0.3}" stroke-dasharray="${s.onTarget ? '' : '0.6 0.5'}" opacity="${op}"><title>${fmtMin(s.minute)}' ${esc(s.player)} · xG ${s.xg}${s.goal ? ' · GOAL' : ''}</title></circle>`;
+  }).join('');
+  let focus = '';
+  if (sel) {
+    const gx = sel.side === 'home' ? 105 : 0;
+    focus = `<line x1="${sel.x}" y1="${sel.y}" x2="${gx}" y2="34" stroke="${color(sel.side)}" stroke-width="0.5" stroke-dasharray="1.2 0.8"/>
+      <circle cx="${sel.x}" cy="${sel.y}" r="${(0.7 + sel.xg * 2.8 + 1.6).toFixed(2)}" fill="none" stroke="var(--fg)" stroke-width="0.4"/>
+      <circle class="pulse" cx="${sel.x}" cy="${sel.y}" r="2" fill="none" stroke="var(--fg)" stroke-width="0.3"><animate attributeName="r" values="2;6" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.8;0" dur="1.4s" repeatCount="indefinite"/></circle>
+      <text x="${Math.min(Math.max(sel.x, 8), 97)}" y="${sel.y < 10 ? sel.y + 7 : sel.y - 4}" font-size="2.8" text-anchor="middle" fill="var(--fg)" font-weight="600">xG ${sel.xg}</text>`;
+  }
+  $('pitch').innerHTML = lines + shots + focus;
+  $('pitch').querySelectorAll('.shot').forEach((el, i) => el.addEventListener('click', () => {
+    const s = x.shots[i];
+    const m = x.markers.find((e) => (e.type === 'goal' && e.minute === s.minute && e.player === s.player) || (e.type === 'save' && e.minute === s.minute && e.side !== s.side));
+    if (m) select(m.id);
+  }));
+  $('pitch-legend').innerHTML = `<span><i class="dot" style="background:var(--home)"></i>${esc(x.home.short)}</span><span><i class="dot" style="background:var(--away)"></i>${esc(x.away.short)}</span><span>Filled = goal · solid ring = on target · size = xG</span><span>Positions reconstructed from shot distance and angle</span>`;
+}
+
+function commentFor(e) {
+  const list = match().commentary[state.lang];
+  const types = e.type === 'save' ? ['save'] : [e.type];
+  const hit = list.filter((c) => c.minute === e.minute && types.includes(c.type));
+  return hit.length ? hit[0].text : null;
+}
+
+function renderCaption() {
+  const x = match(), e = x.markers.find((m) => m.id === state.sel);
+  if (!e) {
+    $('caption').innerHTML = `<span class="line">${x.shots.length} shots, ${x.score.home + x.score.away} goals.</span><span class="why">Pick a clip, a timeline marker or a shot to replay that moment and see why it mattered.</span>`;
+    return;
+  }
+  const km = x.keyMoments.find((k) => k.minute === e.minute && k.player === e.player);
+  const line = commentFor(e) || `${fmtMin(e.minute)}' ${TYPE_LABEL[e.type]} · ${e.player}`;
+  const why = km ? km.why : e.type === 'save' ? `Prevented a chance worth ${e.xg} xG.` : e.type === 'yellow_card' ? `${e.player} is now one booking from a red card.` : '';
+  $('caption').innerHTML = `<span class="tag hint"><i class="dot" style="background:${color(e.side)}"></i>${fmtMin(e.minute)}' · ${TYPE_LABEL[e.type]}${km ? ` · win-probability swing ${Math.round(km.swing * 100)} pts` : ''}</span><span class="line">${esc(line)}</span><span class="why">${esc(why)}</span>`;
+}
+
+/* ---------- Win probability (stacked: home bottom, draw, away top) ---------- */
+function renderWinProb(hoverMin) {
+  const x = match(), W = 520, H = 200, L = 34, R = 10, T = 10, B = 26;
+  const sx = (m) => L + (m / 90) * (W - L - R), sy = (p) => T + (1 - p) * (H - T - B);
+  const wp = x.winProb;
+  const homeTop = wp.map((p, m) => `${sx(m).toFixed(1)},${sy(p[0]).toFixed(1)}`);
+  const drawTop = wp.map((p, m) => `${sx(m).toFixed(1)},${sy(p[0] + p[1]).toFixed(1)}`);
+  const base = `${sx(90)},${sy(0)} ${sx(0)},${sy(0)}`;
+  const top = `${sx(90)},${sy(1)} ${sx(0)},${sy(1)}`;
+  let svg = '';
+  for (const g of [0, 0.5, 1]) svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${sy(g)}" y2="${sy(g)}"/><text x="${L - 6}" y="${sy(g) + 3}" text-anchor="end">${g * 100}%</text>`;
+  for (const m of [0, 15, 30, 45, 60, 75, 90]) svg += `<text x="${sx(m)}" y="${H - 8}" text-anchor="middle">${m}'</text>`;
+  svg += `<polygon points="${homeTop.join(' ')} ${base}" fill="var(--home)" opacity="0.85"/>`;
+  svg += `<polygon points="${drawTop.join(' ')} ${[...homeTop].reverse().join(' ')}" fill="var(--draw)" opacity="0.9"/>`;
+  svg += `<polygon points="${sx(0)},${sy(1)} ${sx(90)},${sy(1)} ${[...drawTop].reverse().join(' ')}" fill="var(--away)" opacity="0.85"/>`;
+  for (const k of x.markers.filter((e) => e.type === 'goal' || e.type === 'red_card')) {
+    const m = Math.min(k.minute, 90);
+    svg += `<line x1="${sx(m)}" x2="${sx(m)}" y1="${T}" y2="${H - B}" stroke="var(--bg)" stroke-width="${k.id === state.sel ? 2.5 : 1}" opacity="${k.id === state.sel ? 1 : 0.55}"/>`;
+  }
+  const cur = hoverMin ?? state.liveMinute;
+  if (cur != null) {
+    const m = Math.min(cur, 90);
+    svg += `<line x1="${sx(m)}" x2="${sx(m)}" y1="${T}" y2="${H - B}" stroke="var(--fg)" stroke-width="1.5"/>`;
+  }
+  svg += `<rect id="wp-hit" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>`;
+  const el = $('wp-chart');
+  el.innerHTML = svg;
+  const at = Math.min(cur ?? 90, 90), p = wp[at];
+  $('wp-readout').textContent = `${fmtMin(cur ?? 90)}'  ${x.home.short} ${Math.round(p[0] * 100)}% · Draw ${Math.round(p[1] * 100)}% · ${x.away.short} ${Math.round(p[2] * 100)}%`;
+  $('wp-legend').innerHTML = `<span><i class="dot" style="background:var(--home)"></i>${esc(x.home.short)} win</span><span><i class="dot" style="background:var(--draw)"></i>Draw</span><span><i class="dot" style="background:var(--away)"></i>${esc(x.away.short)} win</span><span>Lines mark goals and red cards</span>`;
+  const hit = $('wp-hit');
+  const toMin = (ev) => {
+    const r = el.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * W;
+    return Math.max(0, Math.min(90, Math.round(((px - L) / (W - L - R)) * 90)));
+  };
+  hit.addEventListener('pointermove', (ev) => renderWinProb(toMin(ev)));
+  hit.addEventListener('pointerleave', () => renderWinProb());
+}
+
+/* ---------- Timeline ---------- */
+function renderTimeline() {
+  const x = match(), W = 900, L = 20, R = 20, Y = 56;
+  const sx = (m) => L + (m / 94) * (W - L - R);
+  let svg = `<line x1="${L}" x2="${W - R}" y1="${Y}" y2="${Y}" stroke="var(--line)" stroke-width="2"/>`;
+  for (const m of [0, 15, 30, 45, 60, 75, 90]) svg += `<line x1="${sx(m)}" x2="${sx(m)}" y1="${Y - 5}" y2="${Y + 5}" stroke="var(--line)" stroke-width="2"/><text x="${sx(m)}" y="${Y + 22}" text-anchor="middle" fill="var(--muted)" font-size="11">${m === 45 ? 'HT' : m + "'"}</text>`;
+  svg += `<text x="${sx(94)}" y="${Y + 22}" text-anchor="middle" fill="var(--muted)" font-size="11">FT</text>`;
+  if (state.liveMinute != null) svg += `<line x1="${sx(state.liveMinute)}" x2="${sx(state.liveMinute)}" y1="${Y - 30}" y2="${Y + 8}" stroke="var(--fg)" stroke-width="1.5"/>`;
+  let lastLabelX = -Infinity, lift = 0;
+  for (const e of x.markers) {
+    const cx = sx(e.minute), isSel = e.id === state.sel;
+    const label = `${fmtMin(e.minute)}' ${TYPE_LABEL[e.type]}: ${e.player}`;
+    let shape;
+    if (e.type === 'goal') {
+      lift = cx - lastLabelX < 34 ? (lift ? 0 : 14) : 0;
+      lastLabelX = cx;
+      shape = `<circle cx="${cx}" cy="${Y}" r="${isSel ? 9 : 7}" fill="${color(e.side)}" stroke="${isSel ? 'var(--fg)' : 'var(--panel)'}" stroke-width="2"/><text x="${cx}" y="${Y - 16 - lift}" text-anchor="middle" fill="var(--fg)" font-size="11" font-weight="600">${fmtMin(e.minute)}'</text>`;
+    }
+    else if (e.type === 'red_card' || e.type === 'yellow_card') shape = `<rect x="${cx - 4}" y="${Y - 6 - (e.side === 'home' ? 14 : -14)}" width="8" height="11" rx="1.5" fill="var(--card-${e.type === 'red_card' ? 'red' : 'yellow'})" stroke="${isSel ? 'var(--fg)' : 'none'}" stroke-width="1.5"/>`;
+    else if (e.type === 'save') shape = `<circle cx="${cx}" cy="${Y + (e.side === 'home' ? -18 : 18)}" r="${isSel ? 6 : 4.5}" fill="var(--panel)" stroke="${color(e.side)}" stroke-width="2"/>`;
+    else shape = `<line x1="${cx}" x2="${cx}" y1="${Y + 9}" y2="${Y + 14}" stroke="var(--muted)" stroke-width="2"/>`;
+    const clickable = e.type !== 'substitution';
+    svg += clickable ? `<g class="marker" data-id="${e.id}" tabindex="0" role="button" aria-label="${esc(label)}"><title>${esc(label)}</title>${shape}</g>` : `<g><title>${esc(`${fmtMin(e.minute)}' ${x[e.side].short} sub: ${e.player} on for ${e.playerOff}`)}</title>${shape}</g>`;
+  }
+  const el = $('timeline-svg');
+  el.innerHTML = svg;
+  el.querySelectorAll('.marker').forEach((g) => {
+    const id = Number(g.dataset.id);
+    g.addEventListener('click', () => select(id));
+    g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(id); } });
+  });
+}
+
+const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+function renderClips() {
+  const x = match();
+  const items = x.highlights.map((h, i) => {
+    const marker = x.markers.find((e) => e.minute === h.minute && (e.type === h.type || (h.type === 'shot' && e.type === 'save')) && (e.player === h.player || h.type === 'save'))
+      || x.markers.find((e) => e.minute === h.minute && e.type === h.type);
+    const id = marker ? marker.id : null;
+    return `<button type="button" class="clip" data-id="${id ?? ''}" aria-pressed="${id != null && id === state.sel}" ${id == null ? 'disabled' : ''}>
+      <span class="k"><span>Clip ${i + 1}</span><span class="num">${mmss(h.clip.startSec)}–${mmss(h.clip.endSec)}</span></span>
+      <span class="t"><span class="tag"><i class="dot" style="background:${color(h.side)}"></i>${fmtMin(h.minute)}' ${TYPE_LABEL[h.type]}</span></span>
+      <span class="p">${esc(h.player || '')}</span></button>`;
+  }).join('');
+  $('clips').innerHTML = items || '<p class="empty">No highlight-worthy moments in this match.</p>';
+  $('clips').querySelectorAll('.clip[data-id]:not([disabled])').forEach((b) => b.addEventListener('click', () => select(Number(b.dataset.id))));
+}
+
+/* ---------- Tactical ---------- */
+function renderMomentum() {
+  const x = match(), W = 320, H = 190, L = 8, R = 8, T = 14, B = 22, mid = T + (H - T - B) / 2;
+  const max = Math.max(1, ...x.momentum.flatMap((w) => [w.home, w.away]));
+  const half = (H - T - B) / 2 - 4, bw = (W - L - R) / x.momentum.length;
+  let svg = `<line x1="${L}" x2="${W - R}" y1="${mid}" y2="${mid}" stroke="var(--line)" stroke-width="1.5"/>`;
+  svg += `<text x="${L}" y="${T - 3}" style="fill:var(--home)">${esc(x.home.short)} ▲</text><text x="${L}" y="${H - 6 - B + 14}" style="fill:var(--away)">${esc(x.away.short)} ▼</text>`;
+  x.momentum.forEach((w, i) => {
+    const cx = L + i * bw + bw / 2, hw = bw * 0.46;
+    const hh = (w.home / max) * half, ah = (w.away / max) * half;
+    svg += `<rect x="${cx - hw / 2}" y="${mid - 2 - hh}" width="${hw}" height="${hh}" rx="2" fill="var(--home)" opacity="${w.dominant === 'home' ? 1 : 0.5}"><title>${w.window}': ${x.home.short} ${w.home}</title></rect>`;
+    svg += `<rect x="${cx - hw / 2}" y="${mid + 2}" width="${hw}" height="${ah}" rx="2" fill="var(--away)" opacity="${w.dominant === 'away' ? 1 : 0.5}"><title>${w.window}': ${x.away.short} ${w.away}</title></rect>`;
+    svg += `<text x="${cx}" y="${H - 4}" text-anchor="middle">${w.window}</text>`;
+  });
+  $('momentum').innerHTML = svg;
+}
+
+function renderPatterns() {
+  const x = match();
+  const fmtKey = (k) => k.replace(/([A-Z])/g, ' $1').toLowerCase();
+  const items = x.patterns.map((p) => {
+    const ev = Object.entries(p.evidence).filter(([, v]) => typeof v !== 'object').map(([k, v]) => `<span class="chip num">${esc(fmtKey(k))}: ${esc(v)}</span>`).join('');
+    return `<li><span class="side-tag" style="color:${color(p.side)}">${esc(x[p.side].short)} · ${esc(p.pattern.replace(/_/g, ' '))}</span><span>${esc(p.text)}</span>${ev ? `<span class="chips">${ev}</span>` : ''}</li>`;
+  }).join('');
+  $('patterns').innerHTML = items || '<li class="empty">No strong pattern in this match: the numbers were close on every measure MatchMind checks.</li>';
+}
+
+function renderPotm() {
+  const x = match(), p = x.potm;
+  if (!p) { $('potm').innerHTML = '<div class="panel-head"><h3>Player of the match</h3></div><p class="empty">Not enough events to rate players.</p>'; return; }
+  const chips = Object.entries(p.summary).map(([k, v]) => `<span class="chip num">${esc(k)} × ${v}</span>`).join('');
+  $('potm').innerHTML = `<div class="panel-head"><h3>Player of the match</h3><span class="hint">Transparent points</span></div>
+    <div class="potm-name">${esc(p.name)}</div>
+    <div class="side-tag" style="color:${color(p.side)};margin:4px 0 10px">${esc(p.team)}</div>
+    <div class="kpi-value num">${p.points}<span class="kpi-label"> pts</span></div>
+    <div class="chips" style="margin-top:10px">${chips}</div>
+    <p class="hint" style="margin-top:10px">Goal 10, assist 6, save 3 + 10×xG prevented, progressive pass 0.5, booking −3, red card −10, win bonus 3.</p>`;
+}
+
+/* ---------- Recap ---------- */
+function md(text) {
+  const out = [];
+  let list = false;
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  for (const raw of text.split('\n')) {
+    const line = raw.trimEnd();
+    if (line.startsWith('- ')) { if (!list) { out.push('<ul>'); list = true; } out.push(`<li>${inline(line.slice(2))}</li>`); continue; }
+    if (list) { out.push('</ul>'); list = false; }
+    if (!line) continue;
+    if (line.startsWith('# ')) out.push(`<h3>${inline(line.slice(2))}</h3>`);
+    else if (line.startsWith('## ')) out.push(`<h4>${inline(line.slice(3))}</h4>`);
+    else out.push(`<p>${inline(line)}</p>`);
+  }
+  if (list) out.push('</ul>');
+  return out.join('');
+}
+
+function renderRecap() {
+  const x = match();
+  $('recap-tabs').querySelectorAll('button').forEach((b) => {
+    b.setAttribute('aria-selected', String(b.dataset.tab === state.tab));
+    if (b.dataset.tab === 'fan') b.textContent = `Fan (${x[state.side].short})`;
+  });
+  const body = $('recap-body');
+  if (state.tab === 'social') body.innerHTML = `<div class="social">${esc(x.social[state.lang])}</div><p class="hint" style="margin-top:8px">${x.social[state.lang].length} characters</p>`;
+  else if (state.tab === 'fan') body.innerHTML = `<div class="recap">${md(x.fan[state.lang][state.side])}</div>`;
+  else body.innerHTML = `<div class="recap">${md(x.recap[state.lang])}</div>`;
+}
+
+/* ---------- Live feed ---------- */
+function renderFeed(newFrom) {
+  const x = match(), list = x.commentary[state.lang];
+  const visible = state.liveMinute == null ? list : list.filter((c) => c.minute <= state.liveMinute);
+  const ordered = state.liveMinute == null ? visible : [...visible].reverse();
+  $('feed').innerHTML = ordered.map((c) => `<li class="${c.type === 'goal' ? 'goal' : ''} ${newFrom != null && c.minute === newFrom ? 'new' : ''}"><span class="m num">${c.display}'</span><span class="x">${esc(c.text)}</span></li>`).join('');
+  $('clock').textContent = state.liveMinute == null ? 'FT' : `${fmtMin(state.liveMinute)}'`;
+}
+
+function startLive() {
+  const x = match();
+  state.liveMinute = 0;
+  $('play').textContent = 'Stop';
+  if (reduceMotion) { stopLive(); return; }
+  const minutesWithLines = new Set(x.commentary[state.lang].map((c) => c.minute));
+  state.timer = setInterval(() => {
+    state.liveMinute++;
+    const hasLine = minutesWithLines.has(state.liveMinute);
+    renderFeed(hasLine ? state.liveMinute : null);
+    renderWinProb(); renderTimeline();
+    const goal = x.markers.find((e) => e.type === 'goal' && e.minute === state.liveMinute);
+    if (goal) { state.sel = goal.id; renderPitch(); renderCaption(); renderClips(); }
+    if (state.liveMinute >= 94) stopLive();
+  }, 140);
+  renderFeed(); renderWinProb(); renderTimeline();
+}
+
+function stopLive() {
+  clearInterval(state.timer);
+  state.timer = null;
+  state.liveMinute = null;
+  $('play').textContent = 'Replay live';
+  renderFeed(); renderWinProb(); renderTimeline();
+}
+
+function renderAll() {
+  renderHeader(); renderKpis(); renderMetrics(); renderPitch(); renderCaption();
+  renderWinProb(); renderTimeline(); renderClips(); renderMomentum(); renderPatterns(); renderPotm(); renderRecap(); renderFeed();
+}
+
+setup();
+/* Open on the biggest moment so the replay panel is populated at rest. */
+const firstKey = DATA.matches[0].keyMoments[0];
+if (firstKey) {
+  const mk = DATA.matches[0].markers.find((e) => e.minute === firstKey.minute && e.player === firstKey.player);
+  if (mk) state.sel = mk.id;
+}
+renderAll();
+</script>
