@@ -65,5 +65,17 @@ const marker = '/*__MATCHMIND_DATA__*/null';
 if (!template.includes(marker)) throw new Error('Data marker missing from web/template.html');
 const json = JSON.stringify(data).replace(/</g, '\\u003c');
 const outFile = path.join(root, 'web', 'dashboard.html');
-fs.writeFileSync(outFile, template.replace(marker, json));
+const page = template.replace(marker, json);
+const doc = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body style="margin:0">
+${page}
+</body>
+</html>
+`;
+fs.writeFileSync(outFile, doc);
 console.log(`Wrote ${path.relative(root, outFile)} with ${data.matches.length} matches (${Math.round(fs.statSync(outFile).size / 1024)} KB)`);
